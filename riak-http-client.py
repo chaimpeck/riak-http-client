@@ -148,11 +148,11 @@ class RiakHttpClient:
         
 
 def main(args):
-    nodes = ["dp%s.prod6.ec2.cmg.net" % (i + 1) for i in range(5)]
-    bucket = "wcc_dev"
+    nodes = ["localhost"]
+    bucket = "test_bucket"
     client = RiakHttpClient(nodes, bucket)
     
-    #client.put("blah", "4test")
+    client.put("blah", "test")
     print client.get("blah")
     client.delete("blah")
     
