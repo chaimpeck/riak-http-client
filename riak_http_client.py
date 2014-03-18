@@ -3,6 +3,7 @@ import random
 import urllib
 from cStringIO import StringIO
 import mimetools
+from rfc822 import parsedate_tz, mktime_tz
 
 import simplejson as json
 import pycurl
@@ -75,18 +76,18 @@ class RiakHttpClient:
         c.perform()
         
         body = body_buf.getvalue()
-        headers = headers_buf.getvalue()
+        response_headers = headers_buf.getvalue()
         
         body_buf.close()
         headers_buf.close()
         
         # Pop the first line for further processing
-        response_line, headers = headers.split('\r\n', 1)   
+        response_line, response_headers = response_headers.split('\r\n', 1)   
         
         resp, code, message = response_line.split(' ', 2)
 
         # Get the headers
-        m = mimetools.Message(StringIO(headers))
+        m = mimetools.Message(StringIO(response_headers))
         
         response = HttpResponse(body=body, headers=m, code=code, message=message)
         
@@ -103,6 +104,8 @@ class RiakHttpClient:
         
         if response.code == "404":
             raise RiakNoContentException(error_message)
+        elif response.code == '400':
+            raise RiakBadRequestException(error_message)
         else:
             raise RiakUnknownException(error_message)
             
@@ -116,6 +119,8 @@ class RiakHttpClient:
         
         response = self._make_request("keys/" + key)
         
+        print response.headers
+        
         if response.headers.get('Content-Type') == "application/json":
             return json.load(response.body)
         else:
@@ -123,24 +128,42 @@ class RiakHttpClient:
         
         return output
             
-    def put(self, key, data, headers={}, indexes={}):
+    def put(self, key, data, content_type=None, content_encoding=None,
+            meta_headers={}, indexes={}):
         """Put the item at key."""
-    
+        
         base_url = self._get_base_url()
         
-        if 'Content-Type' not in headers:
+        headers = {}
+        
+        print content_type
+        
+        if content_type:
+            headers['Content-Type'] = content_type
+        else:
             headers['Content-Type'] = 'application/octet-stream'
+            
+        if content_encoding:
+            headers['Content-Encoding'] = content_encoding
+        
+        for header_name, value in meta_headers.items():
+            headers['X-Riak-Meta-'+header_name] = value
+        
+        for index_name, value in indexes.items():
+            headers['X-Riak-Index-'+index_name] = value
+        
+        print headers
         
         self._make_request("keys/" + key + "?returnbody=true", method="PUT", 
                            data=data, headers=headers)
         
+    
     def delete(self, key):
         """Delete the item at key."""
         
         self._make_request("keys/" + key, method="DELETE")
         
-        
-        
+    
     def get_bucket_properties(self):
         response = self._make_request("props")
         
@@ -148,11 +171,11 @@ class RiakHttpClient:
         
 
 def main(args):
-    nodes = ["localhost"]
-    bucket = "test_bucket"
+    nodes = ["dp%s.prod6.ec2.cmg.net" % (i + 1) for i in range(5)]
+    bucket = "wcc_dev"
     client = RiakHttpClient(nodes, bucket)
     
-    client.put("blah", "test")
+    client.put("blah", "4test", meta_headers={'SomeHeader':2}, indexes={'domain_bin':'blah'})
     print client.get("blah")
     client.delete("blah")
     
