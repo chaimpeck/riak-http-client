@@ -119,8 +119,6 @@ class RiakHttpClient:
         
         response = self._make_request("keys/" + key)
         
-        print response.headers
-        
         if response.headers.get('Content-Type') == "application/json":
             return json.load(response.body)
         else:
@@ -136,8 +134,6 @@ class RiakHttpClient:
         
         headers = {}
         
-        print content_type
-        
         if content_type:
             headers['Content-Type'] = content_type
         else:
@@ -151,8 +147,6 @@ class RiakHttpClient:
         
         for index_name, value in indexes.items():
             headers['X-Riak-Index-'+index_name] = value
-        
-        print headers
         
         self._make_request("keys/" + key + "?returnbody=true", method="PUT", 
                            data=data, headers=headers)
@@ -171,11 +165,11 @@ class RiakHttpClient:
         
 
 def main(args):
-    nodes = ["dp%s.prod6.ec2.cmg.net" % (i + 1) for i in range(5)]
-    bucket = "wcc_dev"
+    nodes = ["localhost"]
+    bucket = "testbucket"
     client = RiakHttpClient(nodes, bucket)
     
-    client.put("blah", "4test", meta_headers={'SomeHeader':2}, indexes={'domain_bin':'blah'})
+    client.put("blah", "test", meta_headers={'SomeHeader':2}, indexes={'domain_bin':'blah'})
     print client.get("blah")
     client.delete("blah")
     
